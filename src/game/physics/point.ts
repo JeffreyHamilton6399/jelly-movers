@@ -18,6 +18,17 @@ export class PhysPoint {
   body: Body | null = null;
   /** last world-time this point touched something below it */
   lastGroundTime = -1e9;
+  /**
+   * True velocity snapshot (px per substep), captured right after forces are
+   * applied and BEFORE the constraint solver runs. Collision impulse math and
+   * impact events must use these: `x - px` also contains constraint-solver
+   * positional kicks, which would otherwise be misread as huge approach
+   * speeds (phantom impacts, energy injection, endless camera shake).
+   */
+  sx = 0;
+  sy = 0;
+  /** last world time an impact event was reported for this point */
+  lastImpactAt = -1e9;
 
   constructor(
     x: number,

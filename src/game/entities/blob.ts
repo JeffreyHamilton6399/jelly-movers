@@ -14,7 +14,9 @@ export const BLOB = {
   bend: 0.4,
   spoke: 0.55,
   pressure: 24000,
-  maxPressureErr: 0.5,
+  // cap extreme-compression outward force: a blob wedged between two heavy
+  // bodies stores bounded energy instead of firing off like a seed
+  maxPressureErr: 0.32,
   maxSpeed: 320,
   groundSteer: 0.1,
   airSteer: 0.045,

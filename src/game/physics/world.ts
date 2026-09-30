@@ -1,6 +1,7 @@
 import { PhysPoint } from './point';
 import { DistanceConstraint } from './constraint';
 import { Body } from './body';
+import type { Blob } from '../entities/blob';
 import { clamp } from './math';
 
 export interface StaticSegment {
@@ -70,6 +71,8 @@ export const PHYS = {
   maxPointSpeed: 12, // px per substep (~2900 px/s)
   impactMinSpeed: 300,
   maxImpacts: 96,
+  /** min seconds between impact events reported by a single point */
+  impactCooldown: 0.1,
 };
 
 /**
@@ -119,6 +122,15 @@ export class World {
     this.integrate();
     for (const b of this.bodies) b.afterIntegrate(this);
     this.applyBlobCohesion();
+    // Snapshot TRUE velocities now: all real forces are applied, but the
+    // constraint solver has not yet moved positions. Collisions resolve
+    // against these so solver kicks can never masquerade as momentum.
+    for (const b of this.bodies) {
+      for (const p of b.points) {
+        p.sx = p.x - p.px;
+        p.sy = p.y - p.py;
+      }
+    }
     for (let pass = 0; pass < PHYS.collisionPasses; pass++) {
       for (let it = 0; it < PHYS.iterations; it++) {
         for (const b of this.bodies) {
@@ -126,8 +138,25 @@ export class World {
         }
         for (const c of this.extraConstraints) c.solve();
       }
-      this.collideStatics();
+      // Dynamics BEFORE statics: a dynamic contact (e.g. a neighbor blob
+      // pressing down) must not be the last word of a pass, otherwise it
+      // re-penetrates points into the ground every substep and the static
+      // correction never runs after it (permanent sinking + eaten jumps).
       this.collideDynamics();
+      this.collideStatics();
+    }
+    // End-of-substep velocity rebuild: px is recomputed from the TRUE
+    // velocity (sx), which only ever contains real forces (gravity,
+    // pressure, steering, impulses). Constraint-solver positional kicks
+    // therefore never survive into the next integrate as fake momentum —
+    // a deeply squeezed blob recovers its shape positionally instead of
+    // winding up like a spring and exploding.
+    for (const b of this.bodies) {
+      for (const p of b.points) {
+        if (p.invMass === 0) continue;
+        p.px = p.x - p.sx;
+        p.py = p.y - p.sy;
+      }
     }
     for (const b of this.bodies) b.updateBounds();
   }
@@ -160,9 +189,11 @@ export class World {
         )
           continue;
 
-        // relative center velocity (per-substep units)
-        const rvx = B.center.vx - A.center.vx;
-        const rvy = B.center.vy - A.center.vy;
+        // relative center velocity (per-substep units), from true velocities
+        const ab = A as Blob;
+        const bb = B as Blob;
+        const rvx = bb.center.x - bb.center.px - (ab.center.x - ab.center.px);
+        const rvy = bb.center.y - bb.center.py - (ab.center.y - ab.center.py);
         const half = drag * 0.5;
         for (const p of A.points) {
           p.px -= rvx * half;
@@ -173,9 +204,12 @@ export class World {
           p.py += rvy * half;
         }
 
-        // gentle lateral centering of the upper blob over the lower one
+        // gentle lateral centering of the upper blob over the lower one.
+        // Only for real TOWERS (centers ~40+ apart vertically): the old
+        // 14px threshold glued side-by-side blobs into a dead overlap mass
+        // that pinned both to the ground and ate their jumps.
         const heightDiff = Math.abs(A.centerY - B.centerY);
-        if (heightDiff > 14 && heightDiff < 70) {
+        if (heightDiff > 40 && heightDiff < 80) {
           const top = A.centerY < B.centerY ? A : B;
           const bottom = top === A ? B : A;
           const dx = bottom.centerX - top.centerX;
@@ -260,9 +294,9 @@ export class World {
     const d2 = dx * dx + dy * dy;
     if (d2 >= r * r) return;
 
-    // capture velocity BEFORE positional correction (avoids PBD "pop")
-    const vx0 = p.x - p.px;
-    const vy0 = p.y - p.py;
+    // capture TRUE velocity (before positional correction) from the snapshot
+    const vx0 = p.sx;
+    const vy0 = p.sy;
 
     let d = Math.sqrt(d2);
     let nx: number;
@@ -306,6 +340,8 @@ export class World {
     const nvy = ty * (vt + jt) + ny * vn;
     p.px = p.x - nvx;
     p.py = p.y - nvy;
+    p.sx = nvx;
+    p.sy = nvy;
 
     if (ny < -0.55) p.lastGroundTime = this.time;
 
@@ -314,8 +350,10 @@ export class World {
       if (
         speed > PHYS.impactMinSpeed &&
         this.impacts.length < PHYS.maxImpacts &&
-        p.body
+        p.body &&
+        this.time - p.lastImpactAt > PHYS.impactCooldown
       ) {
+        p.lastImpactAt = this.time;
         this.impacts.push({
           x: cx,
           y: cy,
@@ -377,11 +415,11 @@ export class World {
     const d2 = dx * dx + dy * dy;
     if (d2 >= r * r || d2 < 1e-12) return;
 
-    // capture velocities before positional correction
-    let avx = a.x - a.px;
-    let avy = a.y - a.py;
-    let bvx = b.x - b.px;
-    let bvy = b.y - b.py;
+    // capture TRUE velocities (before positional correction) from snapshots
+    let avx = a.sx;
+    let avy = a.sy;
+    let bvx = b.sx;
+    let bvy = b.sy;
 
     const d = Math.sqrt(d2);
     const nx = dx / d;
@@ -426,11 +464,15 @@ export class World {
     bvx += -ny * Jt * b.invMass;
     bvy += nx * Jt * b.invMass;
 
-    // rebuild previous positions from resolved velocities
+    // rebuild previous positions from resolved velocities, keep snapshot true
     a.px = a.x - avx;
     a.py = a.y - avy;
+    a.sx = avx;
+    a.sy = avy;
     b.px = b.x - bvx;
     b.py = b.y - bvy;
+    b.sx = bvx;
+    b.sy = bvy;
 
     // n points from a to b: if ny > 0, b is lower => a rests on b
     if (ny > 0.55) a.lastGroundTime = this.time;
@@ -439,8 +481,10 @@ export class World {
     const speed = approach / this.h;
     if (
       speed > PHYS.impactMinSpeed &&
-      this.impacts.length < PHYS.maxImpacts
+      this.impacts.length < PHYS.maxImpacts &&
+      this.time - a.lastImpactAt > PHYS.impactCooldown
     ) {
+      a.lastImpactAt = this.time;
       this.impacts.push({
         x: (a.x + b.x) / 2,
         y: (a.y + b.y) / 2,
@@ -471,13 +515,13 @@ export class World {
     const d2 = dx * dx + dy * dy;
     if (d2 >= r * r || d2 < 1e-12) return;
 
-    // capture velocities before positional correction
-    let pvx = p.x - p.px;
-    let pvy = p.y - p.py;
-    let avx = ea.x - ea.px;
-    let avy = ea.y - ea.py;
-    let bvx = eb.x - eb.px;
-    let bvy = eb.y - eb.py;
+    // capture TRUE velocities (before positional correction) from snapshots
+    let pvx = p.sx;
+    let pvy = p.sy;
+    let avx = ea.sx;
+    let avy = ea.sy;
+    let bvx = eb.sx;
+    let bvy = eb.sy;
 
     const d = Math.sqrt(d2);
     const nx = dx / d;
@@ -541,13 +585,19 @@ export class World {
     bvx -= -ny * jtE * t;
     bvy -= nx * jtE * t;
 
-    // rebuild previous positions
+    // rebuild previous positions, keep snapshot velocities true
     p.px = p.x - pvx;
     p.py = p.y - pvy;
+    p.sx = pvx;
+    p.sy = pvy;
     ea.px = ea.x - avx;
     ea.py = ea.y - avy;
+    ea.sx = avx;
+    ea.sy = avy;
     eb.px = eb.x - bvx;
     eb.py = eb.y - bvy;
+    eb.sx = bvx;
+    eb.sy = bvy;
 
     // p above edge (pushed up)
     if (ny < -0.55) p.lastGroundTime = this.time;
@@ -559,8 +609,10 @@ export class World {
     const speed = approach / this.h;
     if (
       speed > PHYS.impactMinSpeed &&
-      this.impacts.length < PHYS.maxImpacts
+      this.impacts.length < PHYS.maxImpacts &&
+      this.time - p.lastImpactAt > PHYS.impactCooldown
     ) {
+      p.lastImpactAt = this.time;
       this.impacts.push({
         x: cx,
         y: cy,

@@ -47,6 +47,7 @@ export class Game {
   private dpr = 1;
   private lastNotify = 0;
   private result: ResultSnapshot | null = null;
+  private renderErrLogged = false;
   private onState: (s: GameSnapshot) => void;
   private destroyed = false;
 
@@ -230,7 +231,15 @@ export class Game {
       fps: this.fps,
     };
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.renderer.render(this.ctx, state);
+    try {
+      this.renderer.render(this.ctx, state);
+    } catch (err) {
+      // never let a draw bug blank the whole canvas every frame silently
+      if (!this.renderErrLogged) {
+        this.renderErrLogged = true;
+        console.error('[JellyMovers] render error:', err);
+      }
+    }
     this.notifyThrottled(now);
   };
 

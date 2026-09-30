@@ -115,10 +115,12 @@ export function buildLevel(): LevelData {
       { kind: 'lamp', x: 735, y: 383 },
     ],
     blobSpawns: [
-      { x: 845, y: 852 },
-      { x: 872, y: 832 },
-      { x: 899, y: 852 },
-      { x: 926, y: 832 },
+      // spaced ~67px apart (blob diameter ~65) so nobody starts overlapped;
+      // P3/P4 stand on the loading ramp and settle naturally
+      { x: 848, y: 850 },
+      { x: 915, y: 850 },
+      { x: 988, y: 862 },
+      { x: 1058, y: 842 },
     ],
     truckZone: { x: 1162, y: 662, w: 388, h: 174 },
     menuView: { x: 40, y: 20, w: 1560, h: 940 },

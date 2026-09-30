@@ -582,8 +582,10 @@ export class Renderer {
     // inflate by the collision point radius so the drawn body rests on
     // surfaces exactly where its physics points do
     const pr = f.spec.pointRadius;
-    const hw = f.spec.w / 2 + pr;
-    const hh = f.spec.h / 2 + pr;
+    const w = f.spec.w + pr * 2;
+    const h = f.spec.h + pr * 2;
+    const hw = w / 2;
+    const hh = h / 2;
     const col = FURN_COLORS[f.kind];
 
     ctx.lineJoin = 'round';

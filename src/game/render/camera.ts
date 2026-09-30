@@ -16,6 +16,8 @@ export class Camera {
   private ty = 560;
   private tzoom = 0.75;
   private shakeAmp = 0;
+  /** seconds since the last shake was added (cooldown guard) */
+  private sinceShake = 1;
   viewport: Viewport = { w: 1280, h: 720 };
   worldW = 1760;
   worldH = 1000;
@@ -26,7 +28,11 @@ export class Camera {
   }
 
   shake(amount: number): void {
-    this.shakeAmp = Math.min(12, this.shakeAmp + amount);
+    // global cooldown: one shake per 120ms max, so impact storms can never
+    // turn into constant violent vibration
+    if (this.sinceShake < 0.12) return;
+    this.sinceShake = 0;
+    this.shakeAmp = Math.min(9, this.shakeAmp + amount);
   }
 
   followTargets(targets: { x: number; y: number }[], dt: number): void {
@@ -88,7 +94,8 @@ export class Camera {
     this.zoom = lerp(this.zoom, this.tzoom, kz);
     this.x = lerp(this.x, this.tx, kp);
     this.y = lerp(this.y, this.ty, kp);
-    this.shakeAmp *= Math.exp(-dt * 7);
+    this.shakeAmp *= Math.exp(-dt * 9);
+    this.sinceShake += dt;
   }
 
   apply(ctx: CanvasRenderingContext2D): void {
