@@ -1,40 +1,9 @@
-# dependencies
 node_modules/
-
-# next.js
-.next/
-out/
-build/
-
-# logs
-dev.log
-server.log
+dist/
+.vercel
 *.log
-
-# internal worklog (not part of the shipped app)
-worklog.md
-
-# database
-db/
-*.db
-
-# env
+*.tsbuildinfo
+.DS_Store
 .env
 .env.*
-!.env.example
-
-# misc
-.DS_Store
-.vercel
-tool-results/
-
-# sandbox infrastructure (not part of the game app)
-skills/
-.zscripts/
-mini-services/
-examples/
-tests/
-download/
-Caddyfile
-agent-ctx/
-tsconfig.tsbuildinfo
+.claude/

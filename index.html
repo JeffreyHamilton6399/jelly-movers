@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jelly Movers</title>
+    <meta name="description" content="Squishy local co-op physics: jelly blobs run a moving company. Carry the furniture into the truck before time runs out." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='36' rx='26' ry='22' fill='%23E8735A' stroke='%233B3229' stroke-width='4'/%3E%3Ccircle cx='24' cy='32' r='4' fill='%233B3229'/%3E%3Ccircle cx='40' cy='32' r='4' fill='%233B3229'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="hud" hidden>
+      <div class="tag" id="hud-time">3:00</div>
+      <div class="tag" id="hud-items">0 / 4 in the truck</div>
+      <div class="tag" id="hud-pay">$0</div>
+    </div>
+    <div id="hint" hidden>grab: E · Shift · pad X/B &nbsp;·&nbsp; jump: Space · Enter · pad A &nbsp;·&nbsp; F1 physics debug</div>
+
+    <section id="menu" class="card">
+      <h1>Jelly Movers</h1>
+      <p class="sub">the wobbliest moving company in town</p>
+      <div id="slots"></div>
+      <ul class="controls">
+        <li><b>P1</b> A / D move · Space jump · E grab</li>
+        <li><b>P2</b> ← / → move · Enter jump · Shift grab</li>
+        <li><b>Pads</b> press any button to join · A jump · X grab</li>
+      </ul>
+      <p class="job">
+        Get the box, couch, piano and lamp into the truck in 3 minutes. The piano needs two blobs.
+        The lamp is on a high shelf: stack up to reach it.
+      </p>
+      <button id="start" disabled>Start moving!</button>
+      <p class="small">press a player's keys to join · Enter to start</p>
+    </section>
+
+    <section id="end" class="card" hidden>
+      <h2 id="end-title">Job done!</h2>
+      <p class="sub" id="end-sub"></p>
+      <table id="end-items"></table>
+      <div class="totals">
+        <div><span>Items delivered</span><span id="end-delivered"></span></div>
+        <div><span>Total damage</span><span id="end-damage"></span></div>
+        <div><span>Item pay</span><span id="end-base"></span></div>
+        <div><span>Speed bonus</span><span id="end-bonus"></span></div>
+        <div class="final"><span>Final pay</span><span id="end-pay"></span></div>
+      </div>
+      <div class="buttons">
+        <button id="again">Play again</button>
+        <button id="menu-btn" class="plain">Menu</button>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
