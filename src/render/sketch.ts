@@ -189,24 +189,26 @@ export function hatch(
   ctx.restore();
 }
 
-/** A tiny noise texture used to give everything a paper grain. */
-export function makePaperTexture(size = 180): HTMLCanvasElement {
+/**
+ * Paper grain as a transparent speckle texture. It's shown by a static CSS
+ * overlay (see main.ts), so it costs nothing per frame.
+ */
+export function makePaperTexture(size = 200): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
   const g = c.getContext('2d')!;
   const img = g.createImageData(size, size);
   for (let i = 0; i < size * size; i++) {
-    const fleck = Math.random() < 0.012 ? 40 : 0;
-    const v = 235 + Math.random() * 20 - fleck;
-    img.data[i * 4] = v;
-    img.data[i * 4 + 1] = v - 3;
-    img.data[i * 4 + 2] = v - 9;
-    img.data[i * 4 + 3] = 255;
+    const fleck = Math.random() < 0.012;
+    img.data[i * 4] = 110;
+    img.data[i * 4 + 1] = 90;
+    img.data[i * 4 + 2] = 60;
+    img.data[i * 4 + 3] = fleck ? 70 : Math.random() * 26;
   }
   g.putImageData(img, 0, 0);
   // a few long fibres
-  g.strokeStyle = 'rgba(120, 100, 70, 0.07)';
+  g.strokeStyle = 'rgba(120, 100, 70, 0.12)';
   g.lineWidth = 1;
   for (let i = 0; i < 26; i++) {
     const x = Math.random() * size;

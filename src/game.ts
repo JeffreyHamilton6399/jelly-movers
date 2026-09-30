@@ -57,7 +57,7 @@ export class Game {
     private canvas: HTMLCanvasElement,
     private onView: (v: GameView) => void
   ) {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('2D canvas unavailable');
     this.ctx = ctx;
     this.renderer = new Renderer(this.camera, this.particles);
@@ -183,6 +183,7 @@ export class Game {
       zonePulse: this.zonePulse,
       debug: this.debug,
       fps: this.fps,
+      dpr: this.dpr,
     });
 
     if (now - this.lastViewAt > 150) this.pushView();

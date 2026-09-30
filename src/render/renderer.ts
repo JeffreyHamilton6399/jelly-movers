@@ -10,7 +10,6 @@ import {
   INK,
   PAPER,
   blobPath,
-  makePaperTexture,
   rectPts,
   rnd,
   sketchEdges,
@@ -30,6 +29,7 @@ export interface RenderState {
   zonePulse: number;
   debug: boolean;
   fps: number;
+  dpr: number;
 }
 
 const SKY = '#DCE7E3';
@@ -45,7 +45,6 @@ const BOIL_FPS = 7;
 
 export class Renderer {
   private art = new LevelArt();
-  private paper: CanvasPattern | null = null;
 
   constructor(
     private camera: Camera,
@@ -54,7 +53,6 @@ export class Renderer {
 
   render(ctx: CanvasRenderingContext2D, s: RenderState): void {
     const boil = Math.floor(s.time * BOIL_FPS) % 3;
-    if (!this.paper) this.paper = ctx.createPattern(makePaperTexture(), 'repeat');
 
     // sky wash (screen space) + drifting pencil clouds
     ctx.fillStyle = SKY;
@@ -66,7 +64,7 @@ export class Renderer {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    this.art.draw(ctx, boil);
+    this.art.drawCached(ctx, boil, s.dpr, this.camera.viewRect());
     if (s.showZone) this.drawZone(ctx, s, boil);
 
     for (const f of s.furniture) this.drawShadow(ctx, s.world, f.cx, f.maxY, f.maxX - f.minX);
@@ -80,28 +78,6 @@ export class Renderer {
 
     if (s.debug) this.drawDebug(ctx, s);
     ctx.restore();
-
-    // paper grain over everything, then a soft vignette
-    if (this.paper) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'multiply';
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = this.paper;
-      ctx.fillRect(0, 0, s.cssW, s.cssH);
-      ctx.restore();
-    }
-    const vg = ctx.createRadialGradient(
-      s.cssW / 2,
-      s.cssH / 2,
-      Math.min(s.cssW, s.cssH) * 0.45,
-      s.cssW / 2,
-      s.cssH / 2,
-      Math.max(s.cssW, s.cssH) * 0.75
-    );
-    vg.addColorStop(0, 'rgba(90,70,40,0)');
-    vg.addColorStop(1, 'rgba(90,70,40,0.16)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, s.cssW, s.cssH);
 
     if (s.debug) this.drawDebugHud(ctx, s);
   }

@@ -98,6 +98,13 @@ export class Camera {
     this.sinceShake += dt;
   }
 
+  /** visible world rectangle (with a little slack for shake) */
+  viewRect(): { x: number; y: number; w: number; h: number } {
+    const w = this.viewport.w / this.zoom + 40;
+    const h = this.viewport.h / this.zoom + 40;
+    return { x: this.x - w / 2, y: this.y - h / 2, w, h };
+  }
+
   apply(ctx: CanvasRenderingContext2D): void {
     const sx = this.shakeAmp > 0.2 ? (Math.random() - 0.5) * this.shakeAmp : 0;
     const sy = this.shakeAmp > 0.2 ? (Math.random() - 0.5) * this.shakeAmp : 0;

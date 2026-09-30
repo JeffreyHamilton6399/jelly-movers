@@ -31,6 +31,13 @@ canvas#game {
   display: block;
 }
 
+#paper {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-size: cover, 200px 200px;
+}
+
 [hidden] {
   display: none !important;
 }

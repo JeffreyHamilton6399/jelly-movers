@@ -139,6 +139,51 @@ export class LevelArt {
     ctx.restore();
   }
 
+  // ------------------------------------------------------------------
+  // bitmap cache: the set never moves, so each boil frame is drawn once
+  // into an offscreen canvas and blitted every frame after that
+  // ------------------------------------------------------------------
+
+  /** world area covered by the cache (everything the camera can show) */
+  static readonly BOUNDS = { x: -400, y: -80, w: 2700, h: 1180 };
+  private bitmaps: HTMLCanvasElement[] = [];
+  private bitmapScale = 0;
+
+  /** draw the cached set; `view` is the visible world rect */
+  drawCached(ctx: CanvasRenderingContext2D, boil: number, dpr: number, view: { x: number; y: number; w: number; h: number }): void {
+    // resolution follows the screen, not the (constantly easing) camera zoom,
+    // so it's only rebuilt when the window moves to another display; ~40 MB max
+    const s = dpr > 1.2 ? 1.25 : 1;
+    if (s !== this.bitmapScale) this.buildBitmaps(s);
+    const B = LevelArt.BOUNDS;
+    const bmp = this.bitmaps[boil % this.bitmaps.length];
+    const x0 = Math.max(B.x, view.x);
+    const y0 = Math.max(B.y, view.y);
+    const x1 = Math.min(B.x + B.w, view.x + view.w);
+    const y1 = Math.min(B.y + B.h, view.y + view.h);
+    if (x1 <= x0 || y1 <= y0) return;
+    const k = this.bitmapScale;
+    ctx.drawImage(bmp, (x0 - B.x) * k, (y0 - B.y) * k, (x1 - x0) * k, (y1 - y0) * k, x0, y0, x1 - x0, y1 - y0);
+  }
+
+  private buildBitmaps(scale: number): void {
+    const B = LevelArt.BOUNDS;
+    const frames = scale > 1 ? 2 : 3;
+    this.bitmaps = [];
+    this.bitmapScale = scale;
+    for (let f = 0; f < frames; f++) {
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(B.w * scale);
+      c.height = Math.ceil(B.h * scale);
+      const g = c.getContext('2d')!;
+      g.setTransform(scale, 0, 0, scale, -B.x * scale, -B.y * scale);
+      this.draw(g, f);
+      this.bitmaps.push(c);
+    }
+    // the vector paths aren't needed any more
+    this.cache.clear();
+  }
+
   draw(ctx: CanvasRenderingContext2D, boil: number): void {
     this.ctx = ctx;
     this.boil = boil;
