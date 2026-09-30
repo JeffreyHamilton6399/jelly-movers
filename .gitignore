@@ -37,3 +37,4 @@ tests/
 download/
 Caddyfile
 agent-ctx/
+tsconfig.tsbuildinfo
